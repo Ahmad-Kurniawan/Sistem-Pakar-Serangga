@@ -1,5 +1,5 @@
 "use client";
-
+import Image from "next/image";
 import React, { useState } from "react";
 import {
   Bug,
@@ -747,7 +747,7 @@ const InsectExpertSystem = () => {
     }
 
     const scoredInsects = INSECTS.map((insect) => {
-      let matchedCategories: string[] = [];
+      const matchedCategories: string[] = [];
       let matchScore = 0;
 
       Object.entries(answers).forEach(([questionId, selectedCategory]) => {
@@ -803,7 +803,7 @@ const InsectExpertSystem = () => {
     if (currentStep > 0) {
       setCurrentStep((prev) => prev - 1);
     }
-  };
+  };  
 
   const renderCurrentStep = () => {
     if (currentStep === 0) {
@@ -909,7 +909,7 @@ const InsectExpertSystem = () => {
         </Card>
       );
     }
-
+    
     if (currentStep === QUESTIONS.length + 1 && results.length > 0) {
       return (
         <Card className="w-full">
@@ -923,11 +923,14 @@ const InsectExpertSystem = () => {
                 className="flex flex-col md:flex-row"
               >
                 {result.insect.imageUrl && (
-                  <div className="w-full md:w-1/3">
-                    <img
+                  <div className="w-full md:w-1/3 relative">
+                    <Image
                       src={result.insect.imageUrl}
                       alt={result.insect.name}
-                      className="w-full h-48 object-cover rounded-t-lg md:rounded-l-lg md:rounded-tr-none"
+                      layout="responsive"
+                      width={400}
+                      height={300}
+                      className="object-cover rounded-t-lg md:rounded-l-lg md:rounded-tr-none"
                     />
                   </div>
                 )}
