@@ -1,6 +1,6 @@
 "use client";
-import Image from "next/image";
 import React, { useState } from "react";
+import Image from "next/image";
 import {
   Bug,
   Target,
@@ -65,40 +65,52 @@ const InsectExpertSystem = () => {
 
     const matchingInsects = INSECTS.map((insect) => {
       let matchScore = 0;
-      const matchedCategories: string[] = [];
+      const matchedCategories = new Set<string>();
 
-      // Search in characteristics
+      // Helper function to check and score matches
+      const checkMatch = (text: string, weight: number, category: string) => {
+        if (text.toLowerCase().includes(query.toLowerCase())) {
+          matchScore += weight;
+          matchedCategories.add(category);
+        }
+      };
+
+      // Check name matches (highest priority)
+      checkMatch(insect.name, 5, "name");
+      checkMatch(insect.scientificName, 4, "scientific");
+
+      // Check characteristics
       insect.characteristics.forEach((char) => {
-        if (char.toLowerCase().includes(query.toLowerCase())) {
-          matchScore += 2;
-          matchedCategories.push("characteristics");
-        }
+        checkMatch(char, 3, "characteristics");
       });
 
-      // Search in unique features
+      // Check unique features
       insect.uniqueFeatures.forEach((feature) => {
-        if (feature.toLowerCase().includes(query.toLowerCase())) {
-          matchScore += 2;
-          matchedCategories.push("uniqueFeatures");
-        }
+        checkMatch(feature, 3, "uniqueFeatures");
       });
 
-      // Search in habitat and diet
-      if (insect.habitat.toLowerCase().includes(query.toLowerCase())) {
-        matchScore += 1;
-        matchedCategories.push("habitat");
-      }
-      if (insect.diet.toLowerCase().includes(query.toLowerCase())) {
-        matchScore += 1;
-        matchedCategories.push("diet");
-      }
+      // Check habitat
+      checkMatch(insect.habitat, 2, "habitat");
 
-      const matchPercentage = Math.min(Math.round((matchScore / 6) * 100), 100);
+      // Check diet
+      checkMatch(insect.diet, 2, "diet");
+
+      // Check all match categories
+      Object.entries(insect.matchCategories).forEach(([category, items]) => {
+        items.forEach((item) => {
+          checkMatch(item, 2, category);
+        });
+      });
+
+      const matchPercentage = Math.min(
+        Math.round((matchScore / 20) * 100),
+        100
+      );
 
       return {
         insect,
         matchPercentage,
-        matchedCategories: Array.from(new Set(matchedCategories)),
+        matchedCategories: Array.from(matchedCategories),
       };
     }).filter((result) => result.matchPercentage > 0);
 
@@ -168,7 +180,7 @@ const InsectExpertSystem = () => {
     setShowDirectSearch(false);
   };
 
-  const renderWelcomeScreenAgain = () => (
+  const renderWelcomeScreen = () => (
     <Card className="w-full">
       <CardHeader className="text-center">
         <Bug className="mx-auto text-primary w-16 h-16" />
@@ -199,20 +211,24 @@ const InsectExpertSystem = () => {
         <CardTitle className="flex items-center justify-between">
           <div className="flex items-center">
             <Bug className="mr-3 text-primary" />
-            Pencarian Berdasarkan Ciri-ciri
+            Pencarian Serangga
           </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex gap-2">
-          <Input
-            placeholder="Masukkan ciri-ciri serangga (contoh: sayap, antena, warna)"
-            value={searchQuery}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-              setSearchQuery(e.target.value);
-              searchInsects(e.target.value);
-            }}
-          />
+          <div className="relative flex-grow">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-8"
+              placeholder="Cari berdasarkan nama, ciri-ciri, habitat, makanan, atau keunikan"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                searchInsects(e.target.value);
+              }}
+            />
+          </div>
           <Button variant="outline" onClick={resetSystem}>
             <RefreshCw className="mr-2" /> Reset
           </Button>
@@ -225,25 +241,22 @@ const InsectExpertSystem = () => {
                 key={result.insect.id}
                 className="flex flex-col md:flex-row"
               >
-                {result.insect.imageUrl && (
-                  <div className="w-full md:w-1/3 relative">
-                    <Image
-                      src={result.insect.imageUrl}
-                      alt={result.insect.name}
-                      layout="responsive"
-                      width={400}
-                      height={300}
-                      className="object-cover rounded-t-lg md:rounded-l-lg md:rounded-tr-none"
-                    />
-                  </div>
-                )}
+                <div className="w-full md:w-1/3 relative">
+                  <Image
+                    src={result.insect.imageUrl ?? "/default-image.jpg"} // provide a default image URL
+                    alt={result.insect.name}
+                    width={400}
+                    height={300}
+                    className="object-cover rounded-t-lg md:rounded-l-lg md:rounded-tr-none"
+                  />
+                </div>
                 <div className="p-4 w-full md:w-2/3">
                   <div className="flex justify-between items-center mb-2">
                     <div>
                       <h3 className="text-xl font-bold">
                         {result.insect.name}
                       </h3>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground italic">
                         {result.insect.scientificName}
                       </p>
                     </div>
@@ -260,7 +273,21 @@ const InsectExpertSystem = () => {
                     </Badge>
                   </div>
 
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="mt-2">
+                    <div className="flex flex-wrap gap-1">
+                      {result.matchedCategories.map((category) => (
+                        <Badge
+                          key={category}
+                          variant="outline"
+                          className="text-xs"
+                        >
+                          {category}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-2 gap-4 mt-4">
                     <div>
                       <h4 className="font-semibold mb-2">Karakteristik:</h4>
                       <ul className="list-disc list-inside text-sm space-y-1">
@@ -271,12 +298,18 @@ const InsectExpertSystem = () => {
                     </div>
                     <div>
                       <h4 className="font-semibold mb-2">Detail:</h4>
-                      <p>
+                      <p className="text-sm">
                         <strong>Habitat:</strong> {result.insect.habitat}
                       </p>
-                      <p>
+                      <p className="text-sm">
                         <strong>Makanan:</strong> {result.insect.diet}
                       </p>
+                      <h4 className="font-semibold mt-4 mb-2">Keunikan:</h4>
+                      <ul className="list-disc list-inside text-sm space-y-1">
+                        {result.insect.uniqueFeatures.map((feature, index) => (
+                          <li key={index}>{feature}</li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </div>
@@ -371,18 +404,15 @@ const InsectExpertSystem = () => {
       <CardContent className="space-y-4">
         {results.map((result) => (
           <Card key={result.insect.id} className="flex flex-col md:flex-row">
-            {result.insect.imageUrl && (
-              <div className="w-full md:w-1/3 relative">
-                <Image
-                  src={result.insect.imageUrl}
-                  alt={result.insect.name}
-                  layout="responsive"
-                  width={400}
-                  height={300}
-                  className="object-cover rounded-t-lg md:rounded-l-lg md:rounded-tr-none"
-                />
-              </div>
-            )}
+            <div className="w-full md:w-1/3 relative">
+              <Image
+                src={result.insect.imageUrl ?? "/default-image.jpg"} // provide a default image URL
+                alt={result.insect.name}
+                width={400}
+                height={300}
+                className="object-cover rounded-t-lg md:rounded-l-lg md:rounded-tr-none"
+              />
+            </div>
             <div className="p-4 w-full md:w-2/3">
               <div className="flex justify-between items-center mb-2">
                 <div>
@@ -392,21 +422,29 @@ const InsectExpertSystem = () => {
                   </p>
                 </div>
                 <Badge
-                  style={{
-                    backgroundColor:
-                      result.matchPercentage > 80
-                        ? "green"
-                        : result.matchPercentage > 60
-                        ? "yellow"
-                        : "red",
-                    color: "white",
-                  }}
+                  variant={
+                    result.matchPercentage > 80
+                      ? "default"
+                      : result.matchPercentage > 60
+                      ? "secondary"
+                      : "outline"
+                  }
                 >
-                  {result.matchPercentage}%
+                  Kecocokan {result.matchPercentage}%
                 </Badge>
               </div>
-  
-              <div className="grid md:grid-cols-2 gap-4">
+
+              <div className="mt-2">
+                <div className="flex flex-wrap gap-1">
+                  {result.matchedCategories.map((category) => (
+                    <Badge key={category} variant="outline" className="text-xs">
+                      {category}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-4 mt-4">
                 <div>
                   <h4 className="font-semibold mb-2">Karakteristik:</h4>
                   <ul className="list-disc list-inside text-sm space-y-1">
@@ -417,27 +455,24 @@ const InsectExpertSystem = () => {
                 </div>
                 <div>
                   <h4 className="font-semibold mb-2">Detail:</h4>
-                  <p>
+                  <p className="text-sm">
                     <strong>Habitat:</strong> {result.insect.habitat}
                   </p>
-                  <p>
+                  <p className="text-sm">
                     <strong>Makanan:</strong> {result.insect.diet}
                   </p>
+                  <h4 className="font-semibold mt-4 mb-2">Keunikan:</h4>
+                  <ul className="list-disc list-inside text-sm space-y-1">
+                    {result.insect.uniqueFeatures.map((feature, index) => (
+                      <li key={index}>{feature}</li>
+                    ))}
+                  </ul>
                 </div>
-              </div>
-  
-              <div className="mt-4">
-                <h4 className="font-semibold mb-2">Keunikan:</h4>
-                <ul className="list-disc list-inside text-sm space-y-1">
-                  {result.insect.uniqueFeatures.map((feature, index) => (
-                    <li key={index}>{feature}</li>
-                  ))}
-                </ul>
               </div>
             </div>
           </Card>
         ))}
-  
+
         <div className="flex justify-center">
           <Button onClick={resetSystem}>
             <RefreshCw className="mr-2" /> Mulai Ulang
@@ -446,7 +481,7 @@ const InsectExpertSystem = () => {
       </CardContent>
     </Card>
   );
-  
+
   const renderCurrentStep = () => {
     if (currentStep === 0) {
       return renderWelcomeScreen();
@@ -464,45 +499,13 @@ const InsectExpertSystem = () => {
       return renderResults();
     }
   };
-  const handleDirectSearchClick = () => {
-    setShowDirectSearch(true);
-    setCurrentStep(0); // Reset the current step when switching to direct search
-    setResults([]); // Clear any existing results
-    setAnswers({}); // Clear any existing answers
-  };
-
-  const renderWelcomeScreen = () => (
-    <Card className="w-full">
-      <CardHeader className="text-center">
-        <Bug className="mx-auto text-primary w-16 h-16" />
-        <CardTitle>Selamat Datang di Sistem Pakar Serangga</CardTitle>
-      </CardHeader>
-      <CardContent className="text-center space-y-6">
-        <p className="text-muted-foreground">
-          Pilih metode identifikasi serangga yang Anda inginkan:
-        </p>
-        <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <Button onClick={() => setCurrentStep(1)}>
-            Identifikasi dengan Pertanyaan <ChevronRight className="ml-2" />
-          </Button>
-          <Button variant="secondary" onClick={handleDirectSearchClick}>
-            <Search className="mr-2" /> Cari Berdasarkan Ciri-ciri
-          </Button>
-          <Button variant="outline" onClick={() => setInfoDialogOpen(true)}>
-            <Info className="mr-2" /> Cara Kerja
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-4xl">
         <div className="mb-4 text-center">
           <h1 className="text-3xl font-bold flex items-center justify-center gap-3">
-            <Bug className="text-primary" /> Pengenal Serangga
+            <Bug className="text-primary" /> Sistem Pakar Serangga
           </h1>
         </div>
         {renderCurrentStep()}
